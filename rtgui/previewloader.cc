@@ -27,6 +27,7 @@
 #include <atomic>
 #include "options.h"
 #include "../rtengine/threadpool.h"
+#include "../rtengine/opentrace.h"
 
 #ifdef _OPENMP
 #include <omp.h>
@@ -84,7 +85,7 @@ public:
     MyMutex mutex_;
     std::deque<Job> jobs_;
     std::atomic<int> num_concurrent_threads_;
-    size_t job_count_;
+    std::atomic<size_t> job_count_;
 
     void processNextJob()
     {
@@ -101,11 +102,11 @@ public:
             // copy and remove front job
             j = jobs_.front();
             jobs_.pop_front();
+            ++num_concurrent_threads_;
             DEBUG("processing %s", j.dir_entry_.c_str());
             DEBUG("%d job(s) remaining", jobs_.size());
         }
 
-        ++num_concurrent_threads_; // to detect when last thread in pool has run out
         try {
             Thumbnail* tmb = nullptr;
             if (Glib::file_test(j.dir_entry_, Glib::FILE_TEST_EXISTS)) {
@@ -114,6 +115,7 @@ public:
 
             if (tmb) {
                 DEBUG("Preview Ready\n");
+                rtengine::openTrace("thumbnail_ready");
                 j.listener_->previewReady(j.dir_id_, new FileBrowserEntry(tmb, j.dir_entry_));
             }
 
@@ -123,10 +125,13 @@ public:
 
         } catch (Glib::Error &e) {} catch(...) {}
 
-        bool last = num_concurrent_threads_--;
-
-        // signal at end
-        if (last && jobs_.empty()) {
+        bool finished;
+        {
+            MyMutex::MyLock lock(mutex_);
+            finished = --num_concurrent_threads_ == 0 && jobs_.empty();
+        }
+        if (finished) {
+            rtengine::openTrace("thumbnails_finished");
             j.listener_->previewsFinished(j.dir_id_);
         }
     }

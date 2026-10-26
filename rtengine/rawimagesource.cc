@@ -21,7 +21,9 @@
 
 #include "rtengine.h"
 #include "rawimagesource.h"
+#include "rawframes.h"
 #include "rawimagesource_i.h"
+#include "pipelinetime.h"
 #include "jaggedarray.h"
 #include "median.h"
 #include "rawimage.h"
@@ -638,12 +640,12 @@ RawImageSource::~RawImageSource ()
 
     delete idata;
 
-    for(size_t i = 0; i < numFrames; ++i) {
-        delete riFrames[i];
+    for (auto frame : riFrames) {
+        delete frame;
     }
 
-    for(size_t i = 0; i + 1 < numFrames; ++i) {
-        delete rawDataBuffer[i];
+    for (auto buffer : rawDataBuffer) {
+        delete buffer;
     }
 
     flushRGB();
@@ -1227,6 +1229,7 @@ int RawImageSource::load (const Glib::ustring &fname, bool firstFrameOnly)
         plistener->setProgress (0.0);
     }
     ri = new RawImage(fname);
+    riFrames[0] = ri; // Own it even if identification fails before numFrames is set.
     int errCode = ri->loadRaw (false, 0, false);
 
     if (errCode) {
@@ -1241,71 +1244,15 @@ int RawImageSource::load (const Glib::ustring &fname, bool firstFrameOnly)
         }
     }
     
-    numFrames = firstFrameOnly ? (numFrames < 7 ? 1 : ri->getFrameCount()) : ri->getFrameCount();
-
-    errCode = 0;
-
-    if(numFrames >= 7) {
-        // special case to avoid crash when loading Hasselblad H6D-100cMS pixelshift files
-        // limit to 6 frames and skip first frame, as first frame is not bayer
-        if (firstFrameOnly) {
-            numFrames = 1;
-        } else {
-            numFrames = 6;
+    const auto frames = selectRawFrames(ri->getFrameCount(), firstFrameOnly);
+    numFrames = frames.count;
+    errCode = loadRawFrames(frames, [&](unsigned i, unsigned sourceFrame) {
+        if (i == 0) {
+            return riFrames[i]->loadRaw(true, sourceFrame, true, plistener, 0.8);
         }
-#ifdef _OPENMP99
-        #pragma omp parallel
-#endif
-        {
-            int errCodeThr = 0;
-#ifdef _OPENMP99
-            #pragma omp for nowait
-#endif
-            for(unsigned int i = 0; i < numFrames; ++i) {
-                if(i == 0) {
-                    riFrames[i] = ri;
-                    errCodeThr = riFrames[i]->loadRaw (true, i + 1, true, plistener, 0.8);
-                } else {
-                    riFrames[i] = new RawImage(fname);
-                    errCodeThr = riFrames[i]->loadRaw (true, i + 1);
-                }
-            }
-#ifdef _OPENMP99
-            #pragma omp critical
-#endif
-            {
-                errCode = errCodeThr ? errCodeThr : errCode;
-            }
-        }
-    } else if(numFrames > 1) {
-#ifdef _OPENMP
-        #pragma omp parallel
-#endif
-        {
-            int errCodeThr = 0;
-#ifdef _OPENMP
-            #pragma omp for nowait
-#endif
-            for(unsigned int i = 0; i < numFrames; ++i) {
-                if(i == 0) {
-                    riFrames[i] = ri;
-                    errCodeThr = riFrames[i]->loadRaw (true, i, true, plistener, 0.8);
-                } else {
-                    riFrames[i] = new RawImage(fname);
-                    errCodeThr = riFrames[i]->loadRaw (true, i);
-                }
-            }
-#ifdef _OPENMP
-            #pragma omp critical
-#endif
-            {
-                errCode = errCodeThr ? errCodeThr : errCode;
-            }
-        }
-    } else {
-        riFrames[0] = ri;
-        errCode = riFrames[0]->loadRaw (true, 0, true, plistener, 0.8);
-    }
+        riFrames[i] = new RawImage(fname);
+        return riFrames[i]->loadRaw(true, sourceFrame);
+    });
 
     if(!errCode) {
         for(unsigned int i = 0; i < numFrames; ++i) {
@@ -1441,7 +1388,10 @@ int RawImageSource::load (const Glib::ustring &fname, bool firstFrameOnly)
 
 
     // Load complete Exif information
-    idata = new FramesData (fname);
+    {
+        PipelineTimer timer("raw_metadata");
+        idata = new FramesData (fname);
+    }
     idata->setDCRawFrameCount(numFrames);
     idata->setGainMaps(gain_maps);
     {

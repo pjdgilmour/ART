@@ -1,0 +1,368 @@
+{
+  "date": "2026-10-26",
+  "purpose": "Final stability/performance review; diagnostic timings are not a speed benchmark",
+  "environment": {
+    "cpu": "2 x Xeon E5-2680 v4",
+    "gpu": "NVIDIA RTX A4500",
+    "gui": "Private Xvfb + private D-Bus; copies of RAWs and sidecars",
+    "preset": {
+      "OMP_NUM_THREADS": null,
+      "ART_CPU_OPT": "1",
+      "ART_CPU_THREADS": "1",
+      "ART_EARLY_IMAGE": "1",
+      "ART_DENOISE_ORDERED": "1",
+      "ART_CUDA": "1",
+      "ART_CUDA_RECURSIVE": "1",
+      "ART_HYBRID": "1",
+      "ART_HYBRID_WORKERS": null,
+      "ART_OPEN_TRACE": "1",
+      "ART_HW_MONITOR": "1",
+      "ART_RAW_PARALLEL": "1",
+      "ART_RAW_SIMD": "0",
+      "ART_ASYNC_OPEN": "1",
+      "ART_PROGRESSIVE_OPEN": "1",
+      "ART_SCHEDULER": "dynamic",
+      "ART_PREVIEW_CACHE": "1",
+      "ART_PREFETCH_PREVIEW": "0"
+    }
+  },
+  "validation": {
+    "builds": [
+      "GUI + CLI with CUDA: passed",
+      "GUI + CLI without CUDA: passed"
+    ],
+    "ctest": "[1/4] Building CXX object CMakeFiles/review_serial_test.dir/review_test.cc.o\n[2/4] Linking CXX executable review_serial_test\n[3/4] Building CXX object CMakeFiles/review_test.dir/review_test.cc.o\n[4/4] Linking CXX executable review_test\nInternal ctest changing into directory: /tmp/art-performance-tests\nTest project /tmp/art-performance-tests\n    Start 1: policy_dynamic\n1/4 Test #1: policy_dynamic ...................   Passed    0.01 sec\n    Start 2: policy_groups\n2/4 Test #2: policy_groups ....................   Passed    0.01 sec\n    Start 3: review_concurrency\n3/4 Test #3: review_concurrency ...............   Passed    0.02 sec\n    Start 4: review_without_openmp\n4/4 Test #4: review_without_openmp ............   Passed    0.02 sec\n\n100% tests passed, 0 tests failed out of 4\n\nTotal Test time (real) =   0.06 sec\n",
+    "sanitizers": {
+      "scope": "isolated review_test, not the full application",
+      "flags": "-fsanitize=address,undefined -fno-omit-frame-pointer -fopenmp -pthread",
+      "result": "PASS RAW frame selection/errors/exceptions/thread budget; thumbnail completion, scoped waits and exception cleanup\n"
+    },
+    "gui": [
+      {
+        "name": "after",
+        "binary": "/tmp/art-build-cpu/rtgui/ART",
+        "snapshots": [
+          {
+            "label": "browser_initial",
+            "us": 22051129415,
+            "monitor_samples": 0,
+            "monitor_updates": 0
+          },
+          {
+            "label": "editor_visible",
+            "us": 22056250559,
+            "monitor_samples": 4,
+            "monitor_updates": 3
+          },
+          {
+            "label": "browser_hidden_begin",
+            "us": 22058311509,
+            "monitor_samples": 4,
+            "monitor_updates": 3
+          },
+          {
+            "label": "browser_hidden_end",
+            "us": 22061312466,
+            "monitor_samples": 4,
+            "monitor_updates": 3
+          },
+          {
+            "label": "editor_resumed",
+            "us": 22063373550,
+            "monitor_samples": 7,
+            "monitor_updates": 5
+          },
+          {
+            "label": "after_directory_stress",
+            "us": 22076391623,
+            "monitor_samples": 7,
+            "monitor_updates": 5
+          }
+        ],
+        "returncode": 0
+      }
+    ],
+    "secondary_processes": {
+      "count": 12,
+      "all_returncodes": 0,
+      "timeout_seconds_each": 10,
+      "cuda_context_initializations_across_primary_and_secondaries": 1
+    },
+    "invalid_raw": {
+      "command": [
+        "/tmp/art-build-cpu/rtgui/ART-cli",
+        "-q",
+        "-o",
+        "/tmp/art-review-invalid/out.tif",
+        "-t",
+        "-c",
+        "/tmp/art-review-invalid/invalid.cr2"
+      ],
+      "returncode": 254,
+      "seconds": 0.5120941780005523,
+      "stdout": "ART, version 4a7ed4fb7, command line.\n  Processing: /tmp/art-review-invalid/invalid.cr2\n",
+      "stderr": "Error: impossible to load file: /tmp/art-review-invalid/invalid.cr2\n"
+    },
+    "exports": {
+      "note": "Diagnostic runs with RAW hashes, not a performance benchmark",
+      "runs": [
+        {
+          "name": "before",
+          "input": "276A0950",
+          "command": [
+            "/tmp/art-review-before-cli",
+            "-q",
+            "-a",
+            "-o",
+            "/tmp/art-review-exports-final/276A0950-before.tif",
+            "-t",
+            "-b16",
+            "-p",
+            "/home/paulo/Imagens/2026/20261011/276A0950.cr2.arp",
+            "-c",
+            "/home/paulo/Imagens/2026/20261011/276A0950.cr2"
+          ],
+          "seconds": 3.672730776001117,
+          "hashes": [
+            "ART_RAW_HASH 6740 4500 702c1e01fe0ba38f",
+            "ART_RAW_HASH 6740 4500 f05e58adb12b676d"
+          ],
+          "cuda_context_initializations": 1
+        },
+        {
+          "name": "after",
+          "input": "276A0950",
+          "command": [
+            "/tmp/art-build-cpu/rtgui/ART-cli",
+            "-q",
+            "-a",
+            "-o",
+            "/tmp/art-review-exports-final/276A0950-after.tif",
+            "-t",
+            "-b16",
+            "-p",
+            "/home/paulo/Imagens/2026/20261011/276A0950.cr2.arp",
+            "-c",
+            "/home/paulo/Imagens/2026/20261011/276A0950.cr2"
+          ],
+          "seconds": 3.722943437998765,
+          "hashes": [
+            "ART_RAW_HASH 6740 4500 702c1e01fe0ba38f",
+            "ART_RAW_HASH 6740 4500 f05e58adb12b676d"
+          ],
+          "cuda_context_initializations": 1
+        },
+        {
+          "name": "after",
+          "input": "276A1012",
+          "command": [
+            "/tmp/art-build-cpu/rtgui/ART-cli",
+            "-q",
+            "-a",
+            "-o",
+            "/tmp/art-review-exports-final/276A1012-after.tif",
+            "-t",
+            "-b16",
+            "-p",
+            "/home/paulo/Imagens/2026/20261011/276A1012.cr2.arp",
+            "-c",
+            "/home/paulo/Imagens/2026/20261011/276A1012.cr2"
+          ],
+          "seconds": 8.784896912999102,
+          "hashes": [
+            "ART_RAW_HASH 6740 4500 cb29b9640e153eec",
+            "ART_RAW_HASH 6740 4500 ef8db9ec56c5693c"
+          ],
+          "cuda_context_initializations": 1
+        },
+        {
+          "name": "before",
+          "input": "276A1012",
+          "command": [
+            "/tmp/art-review-before-cli",
+            "-q",
+            "-a",
+            "-o",
+            "/tmp/art-review-exports-final/276A1012-before.tif",
+            "-t",
+            "-b16",
+            "-p",
+            "/home/paulo/Imagens/2026/20261011/276A1012.cr2.arp",
+            "-c",
+            "/home/paulo/Imagens/2026/20261011/276A1012.cr2"
+          ],
+          "seconds": 8.685004445000231,
+          "hashes": [
+            "ART_RAW_HASH 6740 4500 cb29b9640e153eec",
+            "ART_RAW_HASH 6740 4500 ef8db9ec56c5693c"
+          ],
+          "cuda_context_initializations": 1
+        },
+        {
+          "name": "before",
+          "input": "276A1020",
+          "command": [
+            "/tmp/art-review-before-cli",
+            "-q",
+            "-a",
+            "-o",
+            "/tmp/art-review-exports-final/276A1020-before.tif",
+            "-t",
+            "-b16",
+            "-p",
+            "/home/paulo/Imagens/2026/20261011/276A1020.cr2.arp",
+            "-c",
+            "/home/paulo/Imagens/2026/20261011/276A1020.cr2"
+          ],
+          "seconds": 9.887332807000348,
+          "hashes": [
+            "ART_RAW_HASH 6740 4500 7dbcdd1524c1e4ee",
+            "ART_RAW_HASH 6740 4500 c089ad9beea37720"
+          ],
+          "cuda_context_initializations": 1
+        },
+        {
+          "name": "after",
+          "input": "276A1020",
+          "command": [
+            "/tmp/art-build-cpu/rtgui/ART-cli",
+            "-q",
+            "-a",
+            "-o",
+            "/tmp/art-review-exports-final/276A1020-after.tif",
+            "-t",
+            "-b16",
+            "-p",
+            "/home/paulo/Imagens/2026/20261011/276A1020.cr2.arp",
+            "-c",
+            "/home/paulo/Imagens/2026/20261011/276A1020.cr2"
+          ],
+          "seconds": 9.637223961002746,
+          "hashes": [
+            "ART_RAW_HASH 6740 4500 7dbcdd1524c1e4ee",
+            "ART_RAW_HASH 6740 4500 c089ad9beea37720"
+          ],
+          "cuda_context_initializations": 1
+        }
+      ],
+      "quality": [
+        {
+          "input": "276A0950",
+          "result": "6732x4492 channels=3 different=1152 max_lsb=8 mean_lsb=1.30400613613e-05"
+        },
+        {
+          "input": "276A1012",
+          "result": "2560x1708 channels=3 different=67699 max_lsb=65 mean_lsb=0.00543352971311"
+        },
+        {
+          "input": "276A1020",
+          "result": "2560x1708 channels=3 different=2144081 max_lsb=4529 mean_lsb=0.82409067623"
+        }
+      ]
+    }
+  },
+  "pilot_failures": {
+    "results": [
+      {
+        "name": "before",
+        "binary": "/tmp/art-review-before-ART",
+        "snapshots": [
+          {
+            "label": "browser_initial",
+            "us": 21588080253,
+            "monitor_samples": 4,
+            "monitor_updates": 3
+          },
+          {
+            "label": "editor_visible",
+            "us": 21593201649,
+            "monitor_samples": 9,
+            "monitor_updates": 8
+          },
+          {
+            "label": "browser_hidden_begin",
+            "us": 21595262926,
+            "monitor_samples": 11,
+            "monitor_updates": 10
+          },
+          {
+            "label": "browser_hidden_end",
+            "us": 21598264074,
+            "monitor_samples": 14,
+            "monitor_updates": 13
+          },
+          {
+            "label": "editor_resumed",
+            "us": 21600325439,
+            "monitor_samples": 16,
+            "monitor_updates": 15
+          }
+        ],
+        "error": "Command '['/tmp/art-review-before-ART', '/tmp/art-review-gui-v2/before/B']' timed out after 10 seconds"
+      },
+      {
+        "name": "after",
+        "binary": "/tmp/art-build-cpu/rtgui/ART",
+        "snapshots": [
+          {
+            "label": "browser_initial",
+            "us": 21619983418,
+            "monitor_samples": 0,
+            "monitor_updates": 0
+          },
+          {
+            "label": "editor_visible",
+            "us": 21625104549,
+            "monitor_samples": 4,
+            "monitor_updates": 3
+          },
+          {
+            "label": "browser_hidden_begin",
+            "us": 21627165942,
+            "monitor_samples": 4,
+            "monitor_updates": 3
+          },
+          {
+            "label": "browser_hidden_end",
+            "us": 21630166882,
+            "monitor_samples": 4,
+            "monitor_updates": 3
+          },
+          {
+            "label": "editor_resumed",
+            "us": 21632227971,
+            "monitor_samples": 7,
+            "monitor_updates": 5
+          }
+        ],
+        "error": "Command '['/tmp/art-build-cpu/rtgui/ART', '/tmp/art-review-gui-v2/after/A']' died with <Signals.SIGABRT: 6>."
+      }
+    ],
+    "interpretation": "Secondary invocations timed out or aborted while primary main loops remained in GLib poll. CUDA initialization during process exit was observed; final run after deferring warmup and joining before static teardown passed all 12 invocations. These pilot sessions are not counted as successful stress tests."
+  },
+  "limitations": [
+    "No new percentage speedup established.",
+    "TIFF output is not bit-exact; existing denoise nondeterminism remains. All six decoded RAW frame hashes match.",
+    "Special >=7 frame selection tested synthetically; no real Hasselblad multishot file available.",
+    "Sanitizers cover the isolated concurrency/frame-selection regression, not all GTK/CUDA code."
+  ],
+  "source_sha256": {
+    "rtgui/thumbnailjobtracker.h": "35c21260200c3c4deea2edefd47b0d31e76d4d6d02ec488384387abce624f4a2",
+    "rtgui/thumbimageupdater.cc": "b1ec420f34bb3e1ad19eb009a35c3372b23704b8a2cc23454f22fc38d4996ab4",
+    "rtgui/filebrowserentry.cc": "457d1159bbba8287129b1d97c35c9bd01c55a0868883671f66a81b2a470aa9c5",
+    "rtengine/rawframes.h": "c650499956e5fb0d6f5d68412b8443d9242c45496b682e9373edd9b71ccfb902",
+    "rtengine/rawimagesource.cc": "e48ec51eccd36f0ffcebad9b14f08338cf585dbbfa2e498441c9dc404e74e5ae",
+    "rtengine/loadinitial.cc": "c484914674d71a13c73b32adcccef80ac6a970e2b1f01851d22e32d10c37811e",
+    "rtgui/hardwaremonitor.cc": "987a8331a5b0b7ccb1d04782e2f85ae0685f405752c5348862661f335f206f35",
+    "rtengine/cuda/deconvolution.cu": "48057c542ddc10860fe5c293f7119deb120f333ef76b3e4cfa7586905d370a13",
+    "rtengine/cuda/deconvolution.h": "057bfe00b5f3a93004f4684b1a95a26603c2e1ed13a563e0e8e77e345cb903a2",
+    "rtgui/main.cc": "28e3fe0038dbb251ebf929bbf87e84ad71d29818a304cf3d9c10ecc2dab4c78f",
+    "rtgui/main-cli.cc": "f64cdc98e99be41ecc5c65123da18cc691dbfc66a0697ea2a8ffc1c894b2f068",
+    "tools/performance-tests/review_test.cc": "8f7c650f921fd11d91688c5f788d8abcb796b724646e4edaa82563b5ad95922c"
+  },
+  "reproduce_unit_tests": [
+    "cmake -S tools/performance-tests -B /tmp/art-performance-tests -DCMAKE_BUILD_TYPE=Release",
+    "cmake --build /tmp/art-performance-tests -j4",
+    "ctest --test-dir /tmp/art-performance-tests --output-on-failure"
+  ]
+}

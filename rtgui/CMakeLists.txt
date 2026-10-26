@@ -14,6 +14,8 @@ set(CLISOURCEFILES
     )
 
 set(NONCLISOURCEFILES
+    hardwaremonitor.cc
+    openingpreview.cc
     adjuster.cc
     alignedmalloc.cc
     batchqueue.cc
@@ -274,6 +276,9 @@ endif()
 # Create new executables targets
 add_executable(art ${EXTRA_SRC_NONCLI} ${NONCLISOURCEFILES})
 add_executable(art-cli ${EXTRA_SRC_CLI} ${CLISOURCEFILES})
+if(ART_ENABLE_CUDA)
+    set_property(SOURCE main.cc main-cli.cc APPEND PROPERTY COMPILE_DEFINITIONS ART_USE_CUDA)
+endif()
 
 # Add dependencies to executables targets
 add_dependencies(art UpdateInfo)
@@ -366,3 +371,5 @@ if(APPLE_NEW_BUNDLE)
     endforeach()
 endif()
 configure_file("${CMAKE_CURRENT_SOURCE_DIR}/config.h.in" "${CMAKE_CURRENT_BINARY_DIR}/config.h")
+
+target_link_libraries(art PRIVATE ${CMAKE_DL_LIBS})

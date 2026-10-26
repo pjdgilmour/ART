@@ -36,13 +36,6 @@
 #include "thumbnaillistener.h"
 
 
-class FileBrowserEntry;
-struct FileBrowserEntryIdleHelper {
-    FileBrowserEntry* fbentry;
-    bool destroyed;
-    std::atomic<int> pending;
-};
-
 class FileThumbnailButtonSet;
 class FileBrowserEntry : public ThumbBrowserEntryBase,
     public ThumbnailListener,
@@ -56,7 +49,6 @@ class FileBrowserEntry : public ThumbBrowserEntryBase,
     int coarse_rotate;
     rtengine::procparams::CropParams cropParams;
     CropGUIListener* cropgl;
-    FileBrowserEntryIdleHelper* feih;
 
     ImgEditState state;
     float crop_custom_ratio;

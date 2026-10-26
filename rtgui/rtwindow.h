@@ -28,6 +28,7 @@
 #include "splash.h"
 
 class EditWindow;
+class OpeningPreview;
 
 class MessageWindow: public Gtk::Window {
 public:
@@ -126,8 +127,12 @@ public:
     Gtk::Label *getFileBrowserTabLabel() { return browser_tab_label_; }
 
     void quit();
+    void beginLoadingPreview(const Glib::ustring &path);
+    void finishLoadingPreview(const Glib::ustring &path);
     
 private:
+    OpeningPreview *opening_preview_=nullptr;
+    bool opening_busy_=false;
     // void show_info_msg(const Glib::ustring &msg, bool is_error, double duration, size_t padding);
     // bool hide_info_msg();
     // Gtk::Overlay *main_overlay_;

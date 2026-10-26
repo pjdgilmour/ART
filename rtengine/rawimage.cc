@@ -12,6 +12,9 @@
 #endif
 
 #include "rawimage.h"
+#include "pipelinetime.h"
+#include "performance.h"
+#include "rawconvert.h"
 #include "settings.h"
 #include "camconst.h"
 #include "utils.h"
@@ -505,12 +508,14 @@ skip_block:
 
 int RawImage::do_loadRaw(const Glib::ustring &fname, bool loadData, unsigned int imageNum, bool closeFile, ProgressListener *plistener, double progressRange, bool apply_corrections)
 {
+    PipelineTimer load_timer(loadData ? "raw_decode_frame" : "raw_identify");
     ifname = fname.c_str(); //filename.c_str();
     image = nullptr;
     verbose = settings->verbose;
     oprof = nullptr;
 
     if(!ifp) {
+        PipelineTimer timer("raw_read_file");
         ifp = gfopen (ifname);  // Maps to either file map or direct fopen
     } else  {
         fseek (ifp, 0, SEEK_SET);
@@ -783,8 +788,10 @@ int RawImage::do_loadRaw(const Glib::ustring &fname, bool loadData, unsigned int
             }
             {
 #ifdef LIBRAW_USE_OPENMP
-                MyMutex::MyLock lock(*librawMutex);
+                std::unique_ptr<MyMutex::MyLock> lock;
+                if (!performanceFlag("ART_RAW_PARALLEL")) lock.reset(new MyMutex::MyLock(*librawMutex));
 #endif
+                PipelineTimer timer("libraw_unpack");
                 err = libraw_->unpack();
             }
             if (err) {
@@ -803,9 +810,11 @@ int RawImage::do_loadRaw(const Glib::ustring &fname, bool loadData, unsigned int
                 }
             } else {
 #ifdef LIBRAW_USE_OPENMP
-                MyMutex::MyLock lock(*librawMutex);
+                std::unique_ptr<MyMutex::MyLock> lock;
+                if (!performanceFlag("ART_RAW_PARALLEL")) lock.reset(new MyMutex::MyLock(*librawMutex));
 #endif
                 float_raw_image = nullptr;
+                PipelineTimer timer("libraw_raw2image");
                 err = libraw_->raw2image();
                 if (err) {
                     return err;
@@ -1191,6 +1200,7 @@ void RawImage::set_black_from_masked_areas()
 
 float** RawImage::compress_image(unsigned int frameNum, bool freeImage)
 {
+    PipelineTimer timer("raw_compress", width, height);
     if (!image) {
         return nullptr;
     }
@@ -1244,10 +1254,15 @@ float** RawImage::compress_image(unsigned int frameNum, bool freeImage)
         #pragma omp parallel for
 #endif
 
-        for (int row = 0; row < height; row++)
-            for (int col = 0; col < width; col++) {
-                this->data[row][col] = image[(row + top_margin) * iwidth + col + left_margin][FC(row, col)];
+        for (int row = 0; row < height; row++) {
+            if (performanceFlag("ART_RAW_SIMD")) {
+                unpackBayerRow(image[(row + top_margin) * iwidth + left_margin], data[row], width, FC(row, 0), FC(row, 1), true);
+            } else {
+                for (int col = 0; col < width; col++) {
+                    data[row][col] = image[(row + top_margin) * iwidth + col + left_margin][FC(row, col)];
+                }
             }
+        }
     } else if (isXtrans()) {
 #ifdef _OPENMP
         #pragma omp parallel for
@@ -1292,6 +1307,20 @@ float** RawImage::compress_image(unsigned int frameNum, bool freeImage)
 #endif // ART_USE_LIBRAW
         }
         image = nullptr;
+    }
+    // Diagnostic only: compare decoded samples before the nondeterministic
+    // floating-point processing pipeline. Never enabled by the preset.
+    if (performanceFlag("ART_RAW_HASH")) {
+        uint64_t hash = 14695981039346656037ULL;
+        const int channels = (filters || colors == 1) ? 1 : 3;
+        for (int row = 0; row < height; ++row) {
+            const auto *bytes = reinterpret_cast<const unsigned char *>(data[row]);
+            for (size_t i = 0; i < size_t(width) * channels * sizeof(float); ++i) {
+                hash = (hash ^ bytes[i]) * 1099511628211ULL;
+            }
+        }
+        std::fprintf(stderr, "ART_RAW_HASH %d %d %016llx\n", width, height,
+                     static_cast<unsigned long long>(hash));
     }
     return data;
 }

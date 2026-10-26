@@ -1,0 +1,8 @@
+cmake_minimum_required(VERSION 3.18)
+project(art_gpu_display_test LANGUAGES CXX)
+set(CMAKE_CXX_STANDARD 14)
+find_package(PkgConfig REQUIRED)
+pkg_check_modules(GTK3 REQUIRED IMPORTED_TARGET gtk+-3.0)
+pkg_check_modules(EPOXY REQUIRED IMPORTED_TARGET epoxy)
+add_executable(display_test display_test.cc gpupreview.cc)
+target_link_libraries(display_test PRIVATE PkgConfig::GTK3 PkgConfig::EPOXY)

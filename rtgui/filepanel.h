@@ -104,7 +104,6 @@ private:
     MyMutex pendingLoadMutex;
     std::vector<struct pendingLoad*> pendingLoads;
 
-    int error;
 
     IdleRegister idle_register;
     int pane_pos_;

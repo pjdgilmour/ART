@@ -24,6 +24,9 @@
 #endif
 
 #include "config.h"
+#ifdef ART_USE_CUDA
+#include "../rtengine/cuda/deconvolution.h"
+#endif
 #include <gtkmm.h>
 #include <giomm.h>
 #include <iostream>
@@ -31,6 +34,7 @@
 #include "rtwindow.h"
 #include <cstring>
 #include <cstdlib>
+#include <chrono>
 #include <locale.h>
 #include <lensfun.h>
 #include "options.h"
@@ -225,6 +229,9 @@ int processLineParams(int argc, char **argv)
 
 bool init_rt()
 {
+#ifdef ART_USE_CUDA
+    rtengine::cuda::warmUp();
+#endif
     UserCommandStore::getInstance()->init(Glib::build_filename(options.user_config_dir, "usercommands"));
     SoundManager::init();
     wb_presets::init(options.ART_base_dir, options.user_config_dir);
@@ -462,6 +469,9 @@ void show_gimp_plugin_info_dialog(Gtk::Window *parent)
 
 int main (int argc, char **argv)
 {
+#ifdef ART_USE_CUDA
+    rtengine::cuda::WarmUpLifetime cuda_lifetime;
+#endif
 #ifdef WITH_MIMALLOC
     mi_version();
 #endif
@@ -637,6 +647,20 @@ int main (int argc, char **argv)
     gdk_threads_init();
     gtk_init (&argc, &argv);  // use the "--g-fatal-warnings" command line flag to make warnings fatal
     initGUIColorManagement();
+
+    // Optional main-loop latency probe; no callbacks in normal runs.
+    const char *ui_profile = std::getenv("ART_UI_PROFILE");
+    if (ui_profile && std::strcmp(ui_profile, "1") == 0) {
+        using Clock = std::chrono::steady_clock;
+        auto last = Clock::now();
+        Glib::signal_timeout().connect([last]() mutable -> bool {
+            const auto now = Clock::now();
+            const double ms = std::chrono::duration<double, std::milli>(now - last).count();
+            std::fprintf(stderr, "ART_UI_PROFILE {\"interval_ms\":%.3f,\"us\":%lld}\n", ms, static_cast<long long>(std::chrono::duration_cast<std::chrono::microseconds>(now.time_since_epoch()).count()));
+            last = now;
+            return true;
+        }, 16);
+    }
 
     if (fatalError.empty() && remote) {
 #if 1//ndef __APPLE__

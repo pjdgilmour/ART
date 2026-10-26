@@ -2132,3 +2132,7 @@ ZOOMPANEL_ZOOMFITCROPSCREEN;Ajustar o corte à tela\nAtalho: <b>f</b>
 ZOOMPANEL_ZOOMFITSCREEN;Ajustar toda a imagem à tela\nAtalho: <b>f</b>
 ZOOMPANEL_ZOOMIN;Mais Zoom\nAtalho: <b>+</b>
 ZOOMPANEL_ZOOMOUT;Menos Zoom\nAtalho: <b>-</b>
+
+OPENING_CAMERA_PREVIEW;Prévia da câmera (sem ajustes) — processando RAW…
+HARDWARE_MONITOR_TASKS;Tarefas
+HARDWARE_MONITOR_TOOLTIP;CPU/GPU: utilização total do sistema/dispositivo 0. RAM: processo ART. VRAM: dispositivo inteiro. Tarefas: pool auxiliar ativo/em fila. Atualização a cada segundo; — significa indisponível.

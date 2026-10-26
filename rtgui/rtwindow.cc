@@ -19,6 +19,9 @@
 
 #include <gtkmm.h>
 #include "rtwindow.h"
+#include "openingpreview.h"
+#include "../rtengine/performance.h"
+#include "../rtengine/opentrace.h"
 #include "version.h"
 #include "options.h"
 #include "preferences.h"
@@ -430,13 +433,36 @@ RTWindow::RTWindow():
 
         pldBridge = nullptr; // No progress listener
 
+        if (rtengine::performanceFlag("ART_ASYNC_OPEN")) {
+            opening_busy_=true;
+            idle_register.add([this]() -> bool {
+                rtengine::openTrace("open_requested");
+                Thumbnail *thm=CacheManager::getInstance()->getEntry(argv1);
+                if(!thm) {opening_busy_=false;return false;}
+                epanel->setIsProcessing();beginLoadingPreview(argv1);
+                const auto path=argv1;const bool raw=thm->getType()==FT_Raw;
+                auto pc=new ProgressConnector<rtengine::InitialImage*>();
+                pc->startFunc([path,raw]() {int error=0;return rtengine::InitialImage::load(path,raw,&error,nullptr);},
+                    [this,thm,pc,path]() -> bool {
+                        rtengine::openTrace("raw_ready");opening_busy_=false;
+                        if(pc->returnValue()) epanel->open(thm,pc->returnValue());
+                        else {epanel->refreshProcessingState(false);finishLoadingPreview(path);showError(M("MAIN_MSG_CANNOTLOAD"));}
+                        thm->decreaseRef();pc->destroy();return false;
+                    },rtengine::ThreadPool::Priority::HIGHEST);
+                return false;
+            });
+        } else {
+            rtengine::openTrace("open_requested");
         CacheManager* cm = CacheManager::getInstance();
         Thumbnail* thm = cm->getEntry ( argv1 );
 
         if (thm) {
             int error;
             rtengine::InitialImage *ii = rtengine::InitialImage::load (argv1, thm->getType() == FT_Raw, &error, nullptr);
-            epanel->open ( thm, ii );
+            if (ii) epanel->open ( thm, ii );
+            else showError(M("MAIN_MSG_CANNOTLOAD"));
+            thm->decreaseRef();
+        }
         }
     } else {
         mainNB = Gtk::manage (new Gtk::Notebook ());
@@ -550,6 +576,7 @@ RTWindow::RTWindow():
     }
 
     init(main_widget);
+    rtengine::applyCpuPolicy(false,true);
 
     cacheMgr->setProgressListener(this);
     ProfileStore::getInstance()->setProgressListener(this);
@@ -988,6 +1015,7 @@ void RTWindow::addBatchQueueJobs(const std::vector<BatchQueueEntry*>& entries)
 
 bool RTWindow::on_delete_event (GdkEventAny* event)
 {
+    if (opening_busy_) return true;
 
     if (on_delete_has_run) {
         // on Mac OSX we can get multiple events
@@ -1381,4 +1409,18 @@ void RTWindow::createSetmEditor()
     epanel->tbTopPanel_1_visible (true); //show the toggle Top Panel button
     mainNB->append_page (*epanel, *editorLabelGrid);
 
+}
+
+void RTWindow::beginLoadingPreview(const Glib::ustring &path) {
+    if(!rtengine::performanceFlag("ART_PROGRESSIVE_OPEN")) return;
+    if(!main_overlay_) return;
+    if(!opening_preview_) {
+        opening_preview_=Gtk::manage(new OpeningPreview());
+        main_overlay_->add_overlay(*opening_preview_);
+        main_overlay_->set_overlay_pass_through(*opening_preview_,true);
+    }
+    opening_preview_->begin(path);
+}
+void RTWindow::finishLoadingPreview(const Glib::ustring &path) {
+    if(opening_preview_) opening_preview_->finish(path);
 }

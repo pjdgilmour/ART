@@ -258,7 +258,7 @@ private:
     bool needsLensfun();
 
     template <class Ret, class Method>
-    Ret apply(Method op, Imagefloat *img);
+    Ret apply(Method op, Imagefloat *img, const char *name);
 };
 
 

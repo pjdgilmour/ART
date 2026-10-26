@@ -16,11 +16,13 @@
  *  along with RawTherapee.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include "performance.h"
 #include "improcfun.h"
 #include "imagesource.h"
 #include "mytime.h"
 #include "rt_algo.h"
 #include "ipdenoise.h"
+#include "pipelinetime.h"
 #ifdef _OPENMP
 #include <omp.h>
 #endif
@@ -226,6 +228,7 @@ void RGB_denoise_infoGamCurve(const procparams::DenoiseParams & dnparams, bool i
 
 void RGB_denoise_info(ImProcData &im, Imagefloat * src, Imagefloat * provicalc, const bool isRAW, LUTf &gamcurve, float gam, float gamthresh, float gamslope, const procparams::DenoiseParams & dnparams, const double expcomp, float &chaut, int &Nb,  float &redaut, float &blueaut, float &maxredaut, float &maxblueaut, float &minredaut, float &minblueaut, float &chromina, float &sigma, float &lumema, float &sigma_L, float &redyel, float &skinc, float &nsknc)
 {
+    PipelineTimer profile_timer("denoise_info_patch", src->getWidth(), src->getHeight());
     const ProcParams *params = im.params;
     double scale = im.scale;
     bool multiThread = im.multiThread;
@@ -894,7 +897,7 @@ void ImProcFunctions::denoiseComputeParams(ImageSource *imgsrc, const ColorTemp 
         int Nb[9];
 
 #ifdef _OPENMP
-#pragma omp parallel if (multiThread)
+#pragma omp parallel if (multiThread) num_threads(performanceFlag("ART_CPU_OPT") ? std::min(9, omp_get_max_threads()) : omp_get_max_threads())
 #endif
         {
             Imagefloat *origCropPart = new Imagefloat(crW, crH); //allocate memory

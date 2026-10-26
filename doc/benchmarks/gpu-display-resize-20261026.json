@@ -1,0 +1,319 @@
+{
+  "date": "2026-10-26",
+  "hardware": {
+    "gpu": "NVIDIA RTX A4500",
+    "driver": "615.71.09",
+    "cuda": "13.4",
+    "cpu": "2 x Intel Xeon E5-2680 v4",
+    "omp_threads": 28
+  },
+  "source": "RGB16 TIFF previously exported from 276A0950.cr2; 6732x4492",
+  "method": {
+    "resize": "FP32 planar resampler only; all transfers, allocations, validation and host commit included; median runs 1..4, run 0 retained separately",
+    "display": "GTK3/X11 actual window 1150x750; visible region <=1100x700; clipping and Cairo overlay; draw through after-paint + glFinish/current context + GDK display sync; 5 warm-up then 30 samples per mode; not input-to-photon latency or ART editor FPS",
+    "execution": "Sequential; no concurrent compilation or CLI exports during final measurements"
+  },
+  "resize_summary": [
+    {
+      "destination": [
+        2560,
+        1708
+      ],
+      "cpu_ms": 24.6815,
+      "upload_ms": 78.5255,
+      "new_source_total_ms": 101.46199999999999,
+      "resident_total_ms": 25.937,
+      "device_bytes": 553637856
+    },
+    {
+      "destination": [
+        1683,
+        1123
+      ],
+      "cpu_ms": 36.1205,
+      "upload_ms": 81.9225,
+      "new_source_total_ms": 88.6505,
+      "resident_total_ms": 6.1695,
+      "device_bytes": 476585316
+    }
+  ],
+  "resize_runs": [
+    {
+      "source": [
+        6732,
+        4492
+      ],
+      "destination": [
+        2560,
+        1708
+      ],
+      "run": 0,
+      "cpu_ms": 24.851,
+      "upload_ms": 314.271,
+      "new_source_total_ms": 337.748,
+      "device_bytes": 553637856,
+      "different": 0,
+      "max_abs": 0,
+      "resident_total_ms": 26.192
+    },
+    {
+      "source": [
+        6732,
+        4492
+      ],
+      "destination": [
+        2560,
+        1708
+      ],
+      "run": 1,
+      "cpu_ms": 26.51,
+      "upload_ms": 78.562,
+      "new_source_total_ms": 101.797,
+      "device_bytes": 553637856,
+      "different": 0,
+      "max_abs": 0,
+      "resident_total_ms": 26.018
+    },
+    {
+      "source": [
+        6732,
+        4492
+      ],
+      "destination": [
+        2560,
+        1708
+      ],
+      "run": 2,
+      "cpu_ms": 25.979,
+      "upload_ms": 78.489,
+      "new_source_total_ms": 101.127,
+      "device_bytes": 553637856,
+      "different": 0,
+      "max_abs": 0,
+      "resident_total_ms": 25.762
+    },
+    {
+      "source": [
+        6732,
+        4492
+      ],
+      "destination": [
+        2560,
+        1708
+      ],
+      "run": 3,
+      "cpu_ms": 21.977,
+      "upload_ms": 78.169,
+      "new_source_total_ms": 101.057,
+      "device_bytes": 553637856,
+      "different": 0,
+      "max_abs": 0,
+      "resident_total_ms": 25.859
+    },
+    {
+      "source": [
+        6732,
+        4492
+      ],
+      "destination": [
+        2560,
+        1708
+      ],
+      "run": 4,
+      "cpu_ms": 23.384,
+      "upload_ms": 81.975,
+      "new_source_total_ms": 105.049,
+      "device_bytes": 553637856,
+      "different": 0,
+      "max_abs": 0,
+      "resident_total_ms": 26.015
+    },
+    {
+      "source": [
+        6732,
+        4492
+      ],
+      "destination": [
+        1683,
+        1123
+      ],
+      "run": 0,
+      "cpu_ms": 35.803,
+      "upload_ms": 81.266,
+      "new_source_total_ms": 92.399,
+      "device_bytes": 476585316,
+      "different": 0,
+      "max_abs": 0,
+      "resident_total_ms": 13.229
+    },
+    {
+      "source": [
+        6732,
+        4492
+      ],
+      "destination": [
+        1683,
+        1123
+      ],
+      "run": 1,
+      "cpu_ms": 35.709,
+      "upload_ms": 82.452,
+      "new_source_total_ms": 89.035,
+      "device_bytes": 476585316,
+      "different": 0,
+      "max_abs": 0,
+      "resident_total_ms": 6.26
+    },
+    {
+      "source": [
+        6732,
+        4492
+      ],
+      "destination": [
+        1683,
+        1123
+      ],
+      "run": 2,
+      "cpu_ms": 36.235,
+      "upload_ms": 82.154,
+      "new_source_total_ms": 88.964,
+      "device_bytes": 476585316,
+      "different": 0,
+      "max_abs": 0,
+      "resident_total_ms": 6.131
+    },
+    {
+      "source": [
+        6732,
+        4492
+      ],
+      "destination": [
+        1683,
+        1123
+      ],
+      "run": 3,
+      "cpu_ms": 36.26,
+      "upload_ms": 81.691,
+      "new_source_total_ms": 88.337,
+      "device_bytes": 476585316,
+      "different": 0,
+      "max_abs": 0,
+      "resident_total_ms": 5.974
+    },
+    {
+      "source": [
+        6732,
+        4492
+      ],
+      "destination": [
+        1683,
+        1123
+      ],
+      "run": 4,
+      "cpu_ms": 36.006,
+      "upload_ms": 81.275,
+      "new_source_total_ms": 87.789,
+      "device_bytes": 476585316,
+      "different": 0,
+      "max_abs": 0,
+      "resident_total_ms": 6.208
+    }
+  ],
+  "display": {
+    "preview": {
+      "modes": {
+        "cairo": {
+          "samples": 30,
+          "median_ms": 1.815,
+          "min_ms": 1.653,
+          "max_ms": 3.786
+        },
+        "gl_upload_each_frame": {
+          "samples": 30,
+          "median_ms": 9.839,
+          "min_ms": 9.534,
+          "max_ms": 16.761
+        },
+        "gl_resident": {
+          "samples": 30,
+          "median_ms": 8.504,
+          "min_ms": 8.24,
+          "max_ms": 9.479
+        },
+        "cairo_repeat": {
+          "samples": 30,
+          "median_ms": 5.991,
+          "min_ms": 5.79,
+          "max_ms": 9.757
+        }
+      },
+      "first_frames_ms": {
+        "0": 5.745,
+        "1": 202.575,
+        "2": 8.434,
+        "3": 10.901
+      },
+      "window_different_samples": 0,
+      "texture_different_samples": 0
+    },
+    "full_photo": {
+      "modes": {
+        "cairo": {
+          "samples": 30,
+          "median_ms": 48.088,
+          "min_ms": 45.274,
+          "max_ms": 114.373
+        },
+        "gl_upload_each_frame": {
+          "samples": 30,
+          "median_ms": 96.436,
+          "min_ms": 88.73,
+          "max_ms": 110.83
+        },
+        "gl_resident": {
+          "samples": 30,
+          "median_ms": 8.546,
+          "min_ms": 8.301,
+          "max_ms": 11.5
+        },
+        "cairo_repeat": {
+          "samples": 30,
+          "median_ms": 54.874,
+          "min_ms": 52.794,
+          "max_ms": 126.928
+        }
+      },
+      "first_frames_ms": {
+        "0": 122.27,
+        "1": 463.601,
+        "2": 9.929,
+        "3": 131.34
+      },
+      "window_different_samples": 0,
+      "texture_different_samples": 0
+    }
+  },
+  "validation": {
+    "ctest": "4/4 passed",
+    "resize_compute_sanitizer_errors": 0,
+    "resize_fp32_different_samples": 0,
+    "resize_cpu_refactor_export": {
+      "dimensions": [
+        2560,
+        1708
+      ],
+      "channels": 3,
+      "different_samples": 0,
+      "max_lsb": 0
+    },
+    "display_no_gl_fallback": "passed",
+    "display_hidpi_fallback": "passed",
+    "cache_invalidation_and_release": "passed",
+    "resize_compute_sanitizer_leaked_bytes": 0,
+    "cpu_only_export_different_samples": 0
+  },
+  "integration": {
+    "cuda_resize": "experimental API; not dispatched by ART pipeline",
+    "opengl_display": "standalone test harness; not integrated into ART UI"
+  }
+}

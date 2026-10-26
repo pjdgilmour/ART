@@ -22,6 +22,7 @@
 //
 ////////////////////////////////////////////////////////////////
 
+#include "performance.h"
 #include <cmath>
 #include <fftw3.h>
 #include "../rtgui/threadutils.h"
@@ -48,6 +49,7 @@
 #include <omp.h>
 #endif
 #include "StopWatch.h"
+#include "pipelinetime.h"
 
 #define TS 64       // Tile size
 #define offset 25   // shift between tiles
@@ -1478,6 +1480,7 @@ void detail_mask(const array2D<float> &src, array2D<float> &mask, float scaling,
 
 void detail_recovery(int width, int height, LabImage *labdn, array2D<float> *Lin, int numtiles, int numthreads, int denoiseNestedLevels, float **LbloxArray, float **fLbloxArray, size_t blox_array_size, float params_Ldetail, int detail_thresh, array2D<float> &tilemask_in, array2D<float> &tilemask_out, fftwf_plan *plan_forward_blox, fftwf_plan *plan_backward_blox, int max_numblox_W, double scale, bool denoise_aggressive)
 {
+    PipelineTimer profile_timer("denoise_detail_recovery", width, height);
     const auto compute_detail =
         [](float d) -> float
         {
@@ -1489,6 +1492,10 @@ void detail_recovery(int width, int height, LabImage *labdn, array2D<float> *Lin
     // calculation for detail recovery blocks
     const int numblox_W = ceil((static_cast<float>(width)) / (offset)) + 2 * blkrad;
     const int numblox_H = ceil((static_cast<float>(height)) / (offset)) + 2 * blkrad;
+    // Adjacent DCT rows overlap in both accumulators. Schedule non-overlapping
+    // rows together and put a barrier between colors, avoiding lost updates.
+    // Keep the original schedule available for comparison during evaluation.
+    const int row_colors = performanceFlag("ART_DENOISE_ORDERED") ? (TS + offset - 1) / offset : 1;
 
     //%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
     //%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -1503,7 +1510,7 @@ void detail_recovery(int width, int height, LabImage *labdn, array2D<float> *Lin
     if (detail_thresh > 0) {
         array2D<float> LL(width, height, labdn->L, ARRAY2D_BYREFERENCE);
         float amount = LIM01(float(detail_thresh)/100.f);
-        detail_mask(LL, mask, 65535.f, 25.f, 10000.f, amount, BlurType::GAUSS, 25.f / scale, false);
+        detail_mask(LL, mask, 65535.f, 25.f, 10000.f, amount, BlurType::GAUSS, 25.f / scale, performanceFlag("ART_CPU_OPT") && denoiseNestedLevels > 1);
     }   
     
     if (numtiles == 1) {
@@ -1532,12 +1539,13 @@ void detail_recovery(int width, int height, LabImage *labdn, array2D<float> *Lin
         float nbrwt[TS * TS] ALIGNED64;
         AlignedBuffer<float> detail_factor_buf(numblox_W * TS * TS);
         float *detail_factor = detail_factor_buf.data;
-        
+
+        for (int color = 0; color < row_colors; ++color) {
 #ifdef _OPENMP
 #pragma omp for
 #endif
 
-        for (int vblk = 0; vblk < numblox_H; ++vblk) {
+        for (int vblk = color; vblk < numblox_H; vblk += row_colors) {
 
             int top = (vblk - blkrad) * offset;
             float * datarow = pBuf + blkrad * offset;
@@ -1617,6 +1625,7 @@ void detail_recovery(int width, int height, LabImage *labdn, array2D<float> *Lin
             RGBoutput_tile_row(scale, fLblox, Ldetail, tilemask_out, height, width, topproc);
             //%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
         }//end of vertical block loop
+        } // barrier between overlapping row groups
 
         //%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -1637,6 +1646,7 @@ void detail_recovery(int width, int height, LabImage *labdn, array2D<float> *Lin
 
 void RGB_denoise(ImProcData &im, int kall, Imagefloat * src, Imagefloat * dst, Imagefloat * calclum, float * ch_M, float *max_r, float *max_b, bool isRAW, const procparams::DenoiseParams & dnparams, const double expcomp, const NoiseCurve & noiseLCurve, const NoiseCurve & noiseCCurve, float &nresi, float &highresi)
 {
+    PipelineTimer profile_timer("denoise_rgb", src->getWidth(), src->getHeight());
     const ProcParams *params = im.params;
     const double scale = im.scale;
     //const bool multiThread = im.multiThread;
@@ -1915,6 +1925,7 @@ BENCHFUN
             fftwf_plan plan_backward_blox[2];
 
             if (denoiseLuminance) {
+                PipelineTimer plan_timer("denoise_fftw_plan");
                 float *Lbloxtmp  = reinterpret_cast<float*>(fftwf_malloc(max_numblox_W * TS * TS * sizeof(float)));
                 float *fLbloxtmp = reinterpret_cast<float*>(fftwf_malloc(max_numblox_W * TS * TS * sizeof(float)));
 
@@ -1925,10 +1936,10 @@ BENCHFUN
                 fftw_r2r_kind bwdkind[2] = {FFTW_REDFT01, FFTW_REDFT01};
 
                 // Creating the plans with FFTW_MEASURE instead of FFTW_ESTIMATE speeds up the execute a bit
-                plan_forward_blox[0]  = fftwf_plan_many_r2r(2, nfwd, max_numblox_W, Lbloxtmp, nullptr, 1, TS * TS, fLbloxtmp, nullptr, 1, TS * TS, fwdkind, FFTW_MEASURE | FFTW_DESTROY_INPUT);
-                plan_backward_blox[0] = fftwf_plan_many_r2r(2, nfwd, max_numblox_W, fLbloxtmp, nullptr, 1, TS * TS, Lbloxtmp, nullptr, 1, TS * TS, bwdkind, FFTW_MEASURE | FFTW_DESTROY_INPUT);
-                plan_forward_blox[1]  = fftwf_plan_many_r2r(2, nfwd, min_numblox_W, Lbloxtmp, nullptr, 1, TS * TS, fLbloxtmp, nullptr, 1, TS * TS, fwdkind, FFTW_MEASURE | FFTW_DESTROY_INPUT);
-                plan_backward_blox[1] = fftwf_plan_many_r2r(2, nfwd, min_numblox_W, fLbloxtmp, nullptr, 1, TS * TS, Lbloxtmp, nullptr, 1, TS * TS, bwdkind, FFTW_MEASURE | FFTW_DESTROY_INPUT);
+                plan_forward_blox[0]  = fftwf_plan_many_r2r(2, nfwd, max_numblox_W, Lbloxtmp, nullptr, 1, TS * TS, fLbloxtmp, nullptr, 1, TS * TS, fwdkind, (performanceFlag("ART_FFTW_ESTIMATE") ? FFTW_ESTIMATE : FFTW_MEASURE) | FFTW_DESTROY_INPUT);
+                plan_backward_blox[0] = fftwf_plan_many_r2r(2, nfwd, max_numblox_W, fLbloxtmp, nullptr, 1, TS * TS, Lbloxtmp, nullptr, 1, TS * TS, bwdkind, (performanceFlag("ART_FFTW_ESTIMATE") ? FFTW_ESTIMATE : FFTW_MEASURE) | FFTW_DESTROY_INPUT);
+                plan_forward_blox[1]  = fftwf_plan_many_r2r(2, nfwd, min_numblox_W, Lbloxtmp, nullptr, 1, TS * TS, fLbloxtmp, nullptr, 1, TS * TS, fwdkind, (performanceFlag("ART_FFTW_ESTIMATE") ? FFTW_ESTIMATE : FFTW_MEASURE) | FFTW_DESTROY_INPUT);
+                plan_backward_blox[1] = fftwf_plan_many_r2r(2, nfwd, min_numblox_W, fLbloxtmp, nullptr, 1, TS * TS, Lbloxtmp, nullptr, 1, TS * TS, bwdkind, (performanceFlag("ART_FFTW_ESTIMATE") ? FFTW_ESTIMATE : FFTW_MEASURE) | FFTW_DESTROY_INPUT);
                 fftwf_free(Lbloxtmp);
                 fftwf_free(fLbloxtmp);
             }
@@ -1946,7 +1957,7 @@ BENCHFUN
             // }
 
 #ifdef _OPENMP
-            denoiseNestedLevels = omp_get_num_procs() / numthreads;
+            denoiseNestedLevels = (performanceFlag("ART_CPU_THREADS") ? (im.multiThread ? omp_get_max_threads() : 1) : omp_get_num_procs()) / numthreads;
             //bool oldNested = omp_get_nested();
 
             if (denoiseNestedLevels < 2) {

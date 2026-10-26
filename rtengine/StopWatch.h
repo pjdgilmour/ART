@@ -31,8 +31,8 @@ namespace rtengine {
 extern const Settings *settings;
 
 #ifdef BENCHMARK
-    #define BENCHFUN StopWatch StopFun(__func__);
-    #define BENCHFUNMICRO StopWatch StopFun(__func__, true);
+    #define BENCHFUN ::rtengine::StopWatch StopFun(__func__);
+    #define BENCHFUNMICRO ::rtengine::StopWatch StopFun(__func__, true);
 #else
     #define BENCHFUN
     #define BENCHFUNMICRO

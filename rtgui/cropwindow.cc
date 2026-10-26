@@ -17,6 +17,7 @@
  *  along with RawTherapee.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include "cropwindow.h"
+#include "../rtengine/opentrace.h"
 
 #include <iomanip>
 
@@ -1849,6 +1850,7 @@ void CropWindow::expose (Cairo::RefPtr<Cairo::Context> cr)
                 cr->fill();
             }
 
+            rtengine::openTrace("processed_frame_painted");
             if (cropParams.enabled) {
                 int cropX, cropY;
                 cropHandler.getPosition (cropX, cropY);

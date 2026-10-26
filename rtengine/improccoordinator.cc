@@ -17,6 +17,8 @@
  *  along with RawTherapee.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include "improccoordinator.h"
+#include "pipelinetime.h"
+#include "threadpool.h"
 #include "curves.h"
 #include "mytime.h"
 #include "refreshmap.h"
@@ -189,6 +191,9 @@ void ImProcCoordinator::restoreParams()
 // cropCall: calling crop, used to prevent self-updates  ...doesn't seem to be used
 void ImProcCoordinator::updatePreviewImage(int todo, bool panningRelatedChange)
 {
+    ThreadPool::Interactive interactive;
+    applyCpuPolicy();
+    PipelineTimer profile_timer("preview_update");
     MyMutex::MyLock processingLock(mProcessing);
     int numofphases = 14;
     int readyphase = 0;

@@ -42,6 +42,7 @@
 #include "../rtgui/ppversion.h"
 #include "../rtgui/guiutils.h"
 #include "refreshmap.h"
+#include "pipelinetime.h"
 
 namespace rtengine {
 
@@ -554,12 +555,13 @@ void ImProcFunctions::setProgressListener(ProgressListener *pl, int num_previews
 
 
 template <class Ret, class Method>
-Ret ImProcFunctions::apply(Method op, Imagefloat *img)
+Ret ImProcFunctions::apply(Method op, Imagefloat *img, const char *name)
 {
     if (plistener) {
         float percent = float(++progress_step) / float(progress_end);
         plistener->setProgress(percent);
     }
+    PipelineTimer timer(name, img->getWidth(), img->getHeight(), static_cast<int>(cur_pipeline));
     return (this->*op)(img);
 }
 
@@ -569,8 +571,8 @@ bool ImProcFunctions::process(Pipeline pipeline, Stage stage, Imagefloat *img)
     bool stop = false;
     cur_pipeline = pipeline;
 
-#define STEP_(op) apply<void>(&ImProcFunctions::op, img)
-#define STEP_s_(op) apply<bool>(&ImProcFunctions::op, img)
+#define STEP_(op) apply<void>(&ImProcFunctions::op, img, #op)
+#define STEP_s_(op) apply<bool>(&ImProcFunctions::op, img, #op)
         
     switch (stage) {
     case Stage::STAGE_0:

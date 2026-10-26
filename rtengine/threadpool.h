@@ -38,6 +38,7 @@ freely, subject to the following restrictions:
 #include <limits>
 
 #include "noncopyable.h"
+#include "cpupolicy.h"
 
 namespace rtengine {
 
@@ -57,6 +58,25 @@ public:
 
     static void init(size_t num_workers);
     static void cleanup();
+    struct Snapshot { size_t active=0, queued=0, background=0; };
+    static Snapshot snapshot() {
+        if (!instance_) return Snapshot();
+        std::lock_guard<std::mutex> lock(instance_->queue_mutex_);
+        Snapshot s; s.active=instance_->active_;s.queued=instance_->tasks_.size();s.background=instance_->background_active_;return s;
+    }
+    class Interactive {
+        bool active_;
+    public:
+        Interactive():active_(adaptiveScheduling() && bool(instance_)) {if(active_) changeInteractive(1);}
+        ~Interactive() {if(active_) changeInteractive(-1);}
+        Interactive(const Interactive&)=delete;
+        Interactive& operator=(const Interactive&)=delete;
+    };
+    static void changeInteractive(int delta) {
+        if(!instance_) return;
+        {std::lock_guard<std::mutex> lock(instance_->queue_mutex_);instance_->interactive_+=delta;}
+        instance_->condition_.notify_all();
+    }
     
 private:
     ThreadPool(size_t);
@@ -84,6 +104,8 @@ private:
         explicit Task(Priority p, size_t i, Fn func):
             std::function<void()>(func), p_(p), i_(i) {}
 
+        bool background() const { return p_ < Priority::NORMAL; }
+        bool foreground() const { return p_ > Priority::NORMAL; }
         bool operator<(const Task &other) const
         {
             return p_ == other.p_ ? i_ > other.i_ : p_ < other.p_;
@@ -99,6 +121,8 @@ private:
     std::condition_variable condition_;
     bool stop_;
     size_t idx_;
+    size_t active_=0, background_active_=0;
+    int interactive_=0;
 
     static std::unique_ptr<ThreadPool> instance_;
 };
@@ -115,20 +139,35 @@ inline ThreadPool::ThreadPool(size_t threads):
             {
                 while (true) {
                     std::function<void()> task;
+                    bool background=false, foreground=false;
                     {
                         std::unique_lock<std::mutex> lock(this->queue_mutex_);
                         this->condition_.wait(
                             lock,
-                            [this]{ return this->stop_ ||
-                                    !this->tasks_.empty(); });
+                            [this]{
+                                if(this->stop_) return true;
+                                if(this->tasks_.empty()) return false;
+                                if(!adaptiveScheduling() || !this->tasks_.top().background()) return true;
+                                const size_t limit=this->interactive_>0?1:backgroundBudget();
+                                return this->background_active_<limit;
+                            });
                         if (this->stop_ && this->tasks_.empty()) {
                             return;
                         }
+                        background=this->tasks_.top().background();
+                        foreground=this->tasks_.top().foreground();
+                        ++active_;if(background) ++background_active_;if(foreground) ++interactive_;
                         task = std::move(this->tasks_.top());
                         this->tasks_.pop();
                     }
 
+                    applyCpuPolicy(background);
                     task();
+                    {
+                        std::lock_guard<std::mutex> lock(queue_mutex_);
+                        --active_;if(background) --background_active_;if(foreground) --interactive_;
+                    }
+                    condition_.notify_all();
                 }
             }
         );
@@ -158,7 +197,7 @@ auto ThreadPool::enqueue(Priority p, F&& f, Args&&... args)
 
         tasks_.emplace(p, idx_++, [task](){ (*task)(); });
     }
-    condition_.notify_one();
+    condition_.notify_all();
     return res;
 }
 

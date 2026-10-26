@@ -28,6 +28,7 @@
 #include "cplx_wavelet_level.h"
 #include "cplx_wavelet_filter_coeffs.h"
 #include "noncopyable.h"
+#include "pipelinetime.h"
 
 namespace rtengine {
 
@@ -100,6 +101,8 @@ wavelet_decomposition::wavelet_decomposition(E * src, int width, int height, int
       //memoryAllocationFailed(false),
       lvltot(0), subsamp(subsampling), /*numThreads(numThreads),*/ m_w(width), m_h(height)
 {
+
+    PipelineTimer profile_timer("wavelet_decompose", width, height);
 
     //initialize wavelet filters
     wavfilt_len = Daub4Len;
@@ -200,6 +203,7 @@ wavelet_decomposition::wavelet_decomposition(E * src, int width, int height, int
 template<typename E>
 void wavelet_decomposition::reconstruct(E * dst, const float blend)
 {
+    PipelineTimer profile_timer("wavelet_reconstruct", m_w, m_h);
 
     // if(memoryAllocationFailed) {
     //     return;

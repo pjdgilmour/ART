@@ -44,6 +44,8 @@ endif()
 set(CAMCONSTSFILE "camconst.json")
 
 set(RTENGINESOURCEFILES
+    cpupolicy.cc
+    rawconvert.cc
     badpixels.cc
     CA_correct_RT.cc
     FTblockDN.cc
@@ -92,6 +94,7 @@ set(RTENGINESOURCEFILES
     impulse_denoise.cc
     init.cc
     iprgb2out.cc
+    lanczos.cc
     ipresize.cc
     ipsharpen.cc
     iptransform.cc
@@ -163,6 +166,7 @@ set(RTENGINESOURCEFILES
     ipfilmsim.cc
     iptonecurve.cc
     deconvautoradius.cc
+    deconvolution.cc
     filmnegativeproc.cc
     canon_cr3_decoder.cc
     rawimage_gainmap.cc
@@ -216,6 +220,12 @@ include_directories(BEFORE "${CMAKE_CURRENT_BINARY_DIR}")
 
 add_library(rtengine ${RTENGINESOURCEFILES})
 add_dependencies(rtengine UpdateInfo)
+
+if(ART_ENABLE_CUDA)
+    add_subdirectory(cuda)
+    set_property(SOURCE deconvolution.cc APPEND PROPERTY COMPILE_DEFINITIONS ART_USE_CUDA)
+    target_link_libraries(rtengine art_cuda)
+endif()
 
 # It may be nice to store library version too
 if(BUILD_SHARED_LIBS)

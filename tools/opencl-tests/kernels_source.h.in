@@ -1,0 +1,2 @@
+// Generated from kernels.cl by CMake; do not edit the build-tree copy.
+static const char *kernelsSource=R"ART_OPENCL(@KERNELS@)ART_OPENCL";

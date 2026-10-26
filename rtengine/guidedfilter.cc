@@ -33,6 +33,7 @@
 #include "sleef.h"
 #include "rescale.h"
 #include "imagefloat.h"
+#include "pipelinetime.h"
 
 namespace rtengine {
 
@@ -79,6 +80,7 @@ int calculate_subsampling(int w, int h, int r)
 
 void guidedFilter(const array2D<float> &guide, const array2D<float> &src, array2D<float> &dst, int r, float epsilon, bool multithread, int subsampling)
 {
+    PipelineTimer timer("guidedFilter", src.width(), src.height());
 
     const int W = src.width();
     const int H = src.height();

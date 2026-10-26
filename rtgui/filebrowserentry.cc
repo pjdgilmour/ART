@@ -17,6 +17,7 @@
  *  along with RawTherapee.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include "filebrowserentry.h"
+#include <memory>
 
 #include <iomanip>
 #include <cstring>
@@ -45,11 +46,6 @@ FileBrowserEntry::FileBrowserEntry (Thumbnail* thm, const Glib::ustring& fname)
     refresh_disabled_ = true;
     thumbnail = thm;
 
-    feih = new FileBrowserEntryIdleHelper;
-    feih->fbentry = this;
-    feih->destroyed = false;
-    feih->pending = 0;
-
     italicstyle = thumbnail->getType() != FT_Raw;
     datetimeline = thumbnail->getDateTimeString ();
     exifline = thumbnail->getExifString ();
@@ -63,17 +59,9 @@ FileBrowserEntry::FileBrowserEntry (Thumbnail* thm, const Glib::ustring& fname)
 
 FileBrowserEntry::~FileBrowserEntry ()
 {
+    // Stop producers before cancelling their UI callbacks and freeing data.
+    thumbImageUpdater->removeJobs(this);
     idle_register.destroy();
-
-    // so jobs arriving now do nothing
-    if (feih->pending) {
-        feih->destroyed = true;
-    } else {
-        delete feih;
-        feih = nullptr;
-    }
-
-    thumbImageUpdater->removeJobs (this);
 
     if (thumbnail) {
         thumbnail->removeThumbnailListener (this);
@@ -231,33 +219,21 @@ void FileBrowserEntry::procParamsChanged (Thumbnail* thm, int whoChangedIt)
 
 void FileBrowserEntry::updateImage(rtengine::IImage8* img, double scale, const rtengine::procparams::CropParams& cropParams)
 {
-    if (!feih) {
-        return;
-    }
-    redrawRequests++;
-    feih->pending++;
-
-    idle_register.add(
-        [this, img, scale, cropParams]() -> bool
-        {
-            if (feih->destroyed) {
-                if (feih->pending == 1) {
-                    delete feih;
-                } else {
-                    --feih->pending;
-                }
-
-                img->free();
-                return false;
-            }
-
-            feih->fbentry->_updateImage(img, scale, cropParams);
-            --feih->pending;
-
+    // IdleRegister also destroys callbacks that never run. Owning the image
+    // in the callback frees it in both the dispatch and cancellation paths.
+    const std::shared_ptr<rtengine::IImage8> image(img, [](rtengine::IImage8 *p) {
+        p->free();
+    });
+    ++redrawRequests;
+    try {
+        idle_register.add([this, image, scale, cropParams]() -> bool {
+            _updateImage(image.get(), scale, cropParams);
             return false;
-        },
-        G_PRIORITY_LOW
-    );
+        }, G_PRIORITY_LOW);
+    } catch (...) {
+        --redrawRequests;
+        throw;
+    }
 }
 
 void FileBrowserEntry::_updateImage(rtengine::IImage8* img, double s, const rtengine::procparams::CropParams& cropParams)
@@ -286,8 +262,6 @@ void FileBrowserEntry::_updateImage(rtengine::IImage8* img, double s, const rten
             updateBackBuffer();
         }
     }
-
-    img->free ();
 
     refresh_status_ = RefreshStatus::READY;
 

@@ -24,6 +24,9 @@
 #endif
 
 #include "config.h"
+#ifdef ART_USE_CUDA
+#include "../rtengine/cuda/deconvolution.h"
+#endif
 #include <gtkmm.h>
 #include <giomm.h>
 #include <iostream>
@@ -185,6 +188,10 @@ int main (int argc, char **argv)
     bool quickstart = p.first;
     int verbose = p.second;
 
+#ifdef ART_USE_CUDA
+    rtengine::cuda::WarmUpLifetime cuda_lifetime;
+    rtengine::cuda::warmUp();
+#endif
     try {
         Options::load(quickstart, verbose);
     } catch (Options::Error &e) {

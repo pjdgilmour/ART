@@ -16,6 +16,7 @@
  *  You should have received a copy of the GNU General Public License
  *  along with RawTherapee.  If not, see <http://www.gnu.org/licenses/>.
  */
+#include "performance.h"
 #include "rtengine.h"
 #include "colortemp.h"
 #include "imagesource.h"
@@ -34,6 +35,8 @@
 #include "threadpool.h"
 
 #undef THREAD_PRIORITY_NORMAL
+
+#include "pipelinetime.h"
 
 namespace rtengine {
 extern const Settings* settings;
@@ -64,6 +67,8 @@ public:
 
     Imagefloat *operator()()
     {
+        applyCpuPolicy();
+        PipelineTimer timer("processImage");
         if (!job->fast) {
             return normal_pipeline();
         } else {
@@ -111,6 +116,7 @@ private:
 
     bool stage_init(bool is_fast)
     {
+        PipelineTimer timer("stage_init");
         errorCode = 0;
 
         if (pl) {
@@ -212,14 +218,20 @@ private:
             }
         }
 
-        imgsrc->preprocess(params.raw, params.lensProf, params.coarse, params.denoise.enabled, currWB);
+        {
+            PipelineTimer timer("raw_preprocess", fw, fh);
+            imgsrc->preprocess(params.raw, params.lensProf, params.coarse, params.denoise.enabled, currWB);
+        }
 
         if (pl) {
             pl->setProgress (0.20);
         }
         bool autoContrast = imgsrc->getSensorType() == ST_BAYER ? params.raw.bayersensor.dualDemosaicAutoContrast : params.raw.xtranssensor.dualDemosaicAutoContrast;
         double contrastThreshold = imgsrc->getSensorType() == ST_BAYER ? params.raw.bayersensor.dualDemosaicContrast : params.raw.xtranssensor.dualDemosaicContrast;
-        imgsrc->demosaic(params.raw, autoContrast, contrastThreshold);
+        {
+            PipelineTimer timer("demosaic", fw, fh);
+            imgsrc->demosaic(params.raw, autoContrast, contrastThreshold);
+        }
 
         if (params.wb.method == WBParams::AUTO) {
             double rm, gm, bm;
@@ -251,13 +263,19 @@ private:
             pl->setProgress (0.45);
         }
 
+        const auto make_image = [&]() {
+            img = new Imagefloat(fw, fh);
+            imgsrc->getImage(currWB, tr, img, pp, params.exposure, params.raw);
+            img->assignColorSpace(params.icm.workingProfile);
+        };
+        const bool early_image = performanceFlag("ART_EARLY_IMAGE");
+        if (early_image) make_image();
         if (params.denoise.enabled) {
+            PipelineTimer timer("denoise_parameters", fw, fh);
             ipf.denoiseComputeParams(imgsrc, currWB, dnstore, params.denoise);
         }
         
-        img = new Imagefloat(fw, fh);
-        imgsrc->getImage(currWB, tr, img, pp, params.exposure, params.raw);
-        img->assignColorSpace(params.icm.workingProfile);
+        if (!early_image) make_image();
 
         if (pl) {
             pl->setProgress (0.50);
@@ -293,6 +311,7 @@ private:
 
     void stage_denoise()
     {
+        PipelineTimer timer("stage_denoise", fw, fh);
         procparams::ProcParams& params = job->pparams;
         ImProcFunctions &ipf = *(ipf_p.get());
 
@@ -312,12 +331,14 @@ private:
         }
         
         if (params.denoise.enabled) {
+            PipelineTimer timer("denoise", img->getWidth(), img->getHeight());
             ipf.denoise(imgsrc, currWB, img, dnstore, params.denoise);
         }
     }
 
     void stage_transform()
     {
+        PipelineTimer timer("stage_transform", fw, fh);
         procparams::ProcParams &params = job->pparams;
         ImProcFunctions &ipf = *(ipf_p.get());
 
@@ -351,6 +372,7 @@ private:
 
     Imagefloat *stage_finish(bool is_fast)
     {
+        PipelineTimer timer("stage_finish", fw, fh);
         procparams::ProcParams& params = job->pparams;
         ImProcFunctions &ipf = * (ipf_p.get());
 

@@ -17,12 +17,12 @@
  *  along with RawTherapee.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <atomic>
 #include <set>
 
 #include <gtkmm.h>
 
 #include "thumbimageupdater.h"
+#include "thumbnailjobtracker.h"
 
 #include "guiutils.h"
 #include "threadutils.h"
@@ -71,8 +71,7 @@ public:
     typedef std::list<Job> JobList;
 
     Impl():
-        active_(0),
-        inactive_waiting_(false)
+        active_(mutex_)
     {
     }
 
@@ -80,10 +79,7 @@ public:
 
     JobList jobs_;
 
-    std::atomic<unsigned int> active_;
-
-    bool inactive_waiting_;
-    std::condition_variable inactive_;
+    ThumbnailJobTracker active_;
 
     void processNextJob()
     {
@@ -131,8 +127,10 @@ public:
             jobs_.erase(i);
             DEBUG("%d job(s) remaining", int(jobs_.size()) );
 
-            ++active_;
+            active_.started(j.listener_);
         }
+
+        ThumbnailJobTracker::Completion completion(active_, j.listener_);
 
         // unlock and do processing; will relock on block exit, then call listener
         double scale = 1.0;
@@ -156,13 +154,7 @@ public:
             j.listener_->updateImage(img, scale, thm->getProcParams().crop);
         }
 
-        if ( --active_ == 0 ) {
-            std::unique_lock<std::mutex> lock(mutex_);
-            if (inactive_waiting_) {
-                inactive_waiting_ = false;
-                inactive_.notify_all();
-            }
-        }
+
     }
 };
 
@@ -218,47 +210,18 @@ void ThumbImageUpdater::add(ThumbBrowserEntryBase* tbe, bool* priority, bool upg
 
 void ThumbImageUpdater::removeJobs(ThumbImageUpdateListener* listener)
 {
-    DEBUG("removeJobs(%p)", listener);
-
-    {
-        std::unique_lock<std::mutex> lock(impl_->mutex_);
-
-        for( Impl::JobList::iterator i(impl_->jobs_.begin()); i != impl_->jobs_.end(); ) {
-            if (i->listener_ == listener) {
-                DEBUG("erasing specific job");
-                Impl::JobList::iterator e(i++);
-                impl_->jobs_.erase(e);
-            } else {
-                ++i;
-            }
-        }
-    }
-
-    while ( impl_->active_ != 0 ) {
-        DEBUG("waiting for running jobs1");
-        {
-            std::unique_lock<std::mutex> lock(impl_->mutex_);
-            impl_->inactive_waiting_ = true;
-            impl_->inactive_.wait(lock);
-        }
-    }
+    std::unique_lock<std::mutex> lock(impl_->mutex_);
+    impl_->jobs_.remove_if([listener](const Impl::Job &job) {
+        return job.listener_ == listener;
+    });
+    // Do not wait for unrelated thumbnails; completion and the predicate use
+    // the same mutex, including when the last worker finishes before wait().
+    impl_->active_.waitFor(lock, listener);
 }
 
 void ThumbImageUpdater::removeAllJobs()
 {
-    DEBUG("stop");
-
-    {
-        std::unique_lock<std::mutex> lock(impl_->mutex_);
-        impl_->jobs_.clear();
-    }
-
-    while ( impl_->active_ != 0 ) {
-        DEBUG("waiting for running jobs2");
-        {
-            std::unique_lock<std::mutex> lock(impl_->mutex_);
-            impl_->inactive_waiting_ = true;
-            impl_->inactive_.wait(lock);
-        }
-    }
+    std::unique_lock<std::mutex> lock(impl_->mutex_);
+    impl_->jobs_.clear();
+    impl_->active_.waitAll(lock);
 }

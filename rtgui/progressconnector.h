@@ -88,21 +88,27 @@ class ProgressConnector {
     void workingThread()
     {
         std::unique_lock<std::mutex> lock(mtx_);
-        retval = opStart.emit ();
-        gdk_threads_add_idle(ProgressConnector<T>::emitEndSignalUI, new sigc::signal0<bool>(opEnd));
+        try { retval = opStart.emit(); }
+        catch (const std::exception &e) { std::fprintf(stderr, "ART load task: %s\n", e.what()); retval=T(); }
+        catch (...) { std::fprintf(stderr, "ART load task failed\n"); retval=T(); }
         working_ = false;
+        auto callback = new sigc::signal0<bool>(opEnd);
+        lock.unlock();
+        // No access to this after publishing: the UI callback may destroy us.
+        gdk_threads_add_idle(ProgressConnector<T>::emitEndSignalUI, callback);
     }
 
 public:
 
     ProgressConnector(): retval( 0 ), working_(false) {}
 
-    void startFunc(const sigc::slot0<T>& startHandler, const sigc::slot0<bool>& endHandler)
+    void startFunc(const sigc::slot0<T>& startHandler, const sigc::slot0<bool>& endHandler, rtengine::ThreadPool::Priority priority = rtengine::ThreadPool::Priority::NORMAL)
     {
         if (!working_) {
+            working_ = true;
             opStart.connect (startHandler);
             opEnd.connect (endHandler);
-            rtengine::ThreadPool::add_task(rtengine::ThreadPool::Priority::NORMAL, sigc::mem_fun(*this, &ProgressConnector<T>::workingThread));
+            rtengine::ThreadPool::add_task(priority, sigc::mem_fun(*this, &ProgressConnector<T>::workingThread));
         }
     }
 

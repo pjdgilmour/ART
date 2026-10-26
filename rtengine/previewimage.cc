@@ -38,7 +38,7 @@ extern const Settings *settings;
 using namespace rtengine;
 using namespace procparams;
 
-PreviewImage::PreviewImage(const Glib::ustring &fname, const Glib::ustring &ext, int width, int height, bool enable_cms, bool compute_histogram):
+PreviewImage::PreviewImage(const Glib::ustring &fname, const Glib::ustring &ext, int width, int height, bool enable_cms, bool compute_histogram, bool embedded_only):
     fname_(fname),
     ext_(ext),
     width_(width),
@@ -46,6 +46,7 @@ PreviewImage::PreviewImage(const Glib::ustring &fname, const Glib::ustring &ext,
     enable_cms_(enable_cms),
     compute_histogram_(compute_histogram),
     loaded_(false),
+    embedded_only_(embedded_only),
     imgprof_(nullptr)
 {
 }
@@ -121,7 +122,7 @@ void PreviewImage::load()
 
     if (lext == "jpg" || lext == "jpeg" || lext == "png" /*|| lext == "tif" || lext == "tiff" || ImageIOManager::getInstance()->canLoad(lext)*/) {
         img_.reset(load_img(fname_, width_, height_));
-    } else if (settings->thumbnail_inspector_mode == Settings::ThumbnailInspectorMode::RAW) {
+    } else if (!embedded_only_ && settings->thumbnail_inspector_mode == Settings::ThumbnailInspectorMode::RAW) {
         img_.reset(load_raw(fname_, width_, height_));
         if (settings->thumbnail_inspector_raw_curve == Settings::ThumbnailInspectorRawCurve::RAW_CLIPPING) {
             enable_cms_ = false;

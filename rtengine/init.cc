@@ -16,6 +16,7 @@
  *  You should have received a copy of the GNU General Public License
  *  along with RawTherapee.  If not, see <http://www.gnu.org/licenses/>.
  */
+#include "performance.h"
 #include <fftw3.h>
 #include "../rtgui/profilestorecombobox.h"
 #include "rtengine.h"
@@ -67,10 +68,13 @@ int init (const Settings* s, Glib::ustring baseDir, Glib::ustring userSettingsDi
     if (num_threads <= 0) {
         num_threads = 1;
 #ifdef _OPENMP
-        num_threads = std::max(omp_get_num_procs()-1, num_threads);
+        num_threads = std::max((performanceFlag("ART_CPU_OPT") ? omp_get_max_threads() : omp_get_num_procs())-1, num_threads);
 #endif
     }
+    cpuTopology(); // Capture the allowed CPU mask before optional affinity changes.
+    if (adaptiveScheduling()) num_threads = std::max(2, backgroundBudget()+1);
     ThreadPool::init(num_threads);
+    applyCpuPolicy();
 
 #ifdef _OPENMP
 #pragma omp parallel sections if (!settings->verbose)

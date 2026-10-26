@@ -33,6 +33,7 @@
 #include "cJSON.h"
 #include "../rtgui/multilangmgr.h"
 #include <sstream>
+#include "deconvolution.h"
 
 namespace rtengine {
 
@@ -136,94 +137,6 @@ void sharpenHaloCtrl(float** luminance, float** blurmap, float** base, float** b
             }
 
             luminance[i][j] = intp(blend[i][j], newL, luminance[i][j]);
-        }
-    }
-}
-
-
-void deconvsharpening(float **luminance, float **blend, char **impulse, int W, int H, double sigma, float amount, bool multiThread)
-{
-    if (amount <= 0) {
-        return;
-    }
-BENCHFUN
-
-    const int maxiter = 20;
-    const float delta_factor = 0.2f;
-
-    if (sigma < 0.2f) {
-        return;
-    }
-    
-    JaggedArray<float> tmp(W, H);
-    JaggedArray<float> tmpI(W, H);
-    JaggedArray<float> out(W, H);
-
-    constexpr float offset = 1000.f;
-
-#ifdef _OPENMP
-#   pragma omp parallel for if (multiThread)
-#endif
-    for (int i = 0; i < H; i++) {
-        for(int j = 0; j < W; j++) {
-            luminance[i][j] += offset;
-            tmpI[i][j] = std::max(luminance[i][j], 0.f);
-            assert(std::isfinite(tmpI[i][j]));
-            out[i][j] = RT_NAN;
-        }
-    }
-
-    const auto get_output =
-        [&](int i, int j) -> float
-        {
-            if (UNLIKELY(std::isnan(tmpI[i][j]))) {
-                return luminance[i][j];
-            }
-            float b = impulse[i][j] ? 0.f : blend[i][j] * amount;
-            return intp(b, std::max(tmpI[i][j], 0.0f), luminance[i][j]);
-        };
-
-    const auto check_stop =
-        [&](int y, int x) -> void
-        {
-            if (LIKELY(std::isnan(out[y][x]))) {
-                float l = luminance[y][x];
-                float delta = l * delta_factor;
-                if (UNLIKELY(std::abs(tmpI[y][x] - l) > delta)) {
-                    out[y][x] = get_output(y, x);
-                }
-            }
-        };
-
-#ifdef _OPENMP
-#   pragma omp parallel if (multiThread)
-#endif
-    {
-        for (int k = 0; k < maxiter; k++) {
-            gaussianBlur(tmpI, tmp, W, H, sigma, nullptr, GAUSS_DIV, luminance);
-            gaussianBlur(tmp, tmpI, W, H, sigma, nullptr, GAUSS_MULT);
-#ifdef _OPENMP
-#           pragma omp for
-#endif
-            for (int y = 0; y < H; ++y) {
-                for (int x = 0; x < W; ++x) {
-                    check_stop(y, x);
-                }
-            }
-        }
-
-#ifdef _OPENMP
-#       pragma omp for
-#endif
-        for (int i = 0; i < H; ++i) {
-            for (int j = 0; j < W; ++j) {
-                float l = out[i][j];
-                if (std::isnan(l)) {
-                    l = get_output(i, j);
-                }
-                assert(std::isfinite(l));
-                luminance[i][j] = std::max(l - offset, 0.f);
-            }
         }
     }
 }
@@ -758,8 +671,7 @@ bool ImProcFunctions::doSharpening(Imagefloat *rgb, const SharpeningParams &shar
         float delta = sharpenParam.deconvCornerBoost / scale;
         if (delta > 0.01f) {
             array2D<float> YY2(W, H, Y, ARRAY2D_ALIGNED);
-            deconvsharpening(YY, blend, *impulse, W, H, sigma, amount, multiThread);
-            deconvsharpening(YY2, blend, *impulse, W, H, sigma + delta, amount, multiThread);
+            deconvsharpeningPair(YY, YY2, blend, *impulse, W, H, sigma, sigma + delta, amount, multiThread);
             int fw = full_width > 0 ? full_width : W;
             int fh = full_height > 0 ? full_height : H;
             CornerBoostMask mask(offset_x, offset_y, fw, fh, sharpenParam.deconvCornerLatitude);

@@ -18,6 +18,9 @@
  *  along with RawTherapee.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include "editorpanel.h"
+#include "hardwaremonitor.h"
+#include "../rtengine/opentrace.h"
+#include "../rtengine/pipelinetime.h"
 
 #include <iostream>
 
@@ -589,6 +592,11 @@ EditorPanel::EditorPanel (FilePanel* filePanel)
     toolBarPanel->pack_start (*tpc->getToolBar(), Gtk::PACK_SHRINK, 1);
     toolBarPanel->pack_start (*vsept, Gtk::PACK_SHRINK, 2);
 
+    const char *monitor = std::getenv("ART_HW_MONITOR");
+    if (!monitor || std::strcmp(monitor, "0") != 0) {
+        toolBarPanel->pack_start(*Gtk::manage(new HardwareMonitor()), Gtk::PACK_EXPAND_WIDGET);
+    }
+
     if (tbTopPanel_1) {
         Gtk::VSeparator* vsep = Gtk::manage (new Gtk::VSeparator ());
         toolBarPanel->pack_end   (*tbTopPanel_1, Gtk::PACK_SHRINK, 1);
@@ -1034,6 +1042,8 @@ bool EditorPanel::can_open_now() const
 
 void EditorPanel::open(Thumbnail* tmb, rtengine::InitialImage* isrc)
 {
+    rtengine::openTrace("editor_bind_start");
+    rtengine::PipelineTimer bind_timer("editor_bind");
     close();
 
     isProcessing = true; // prevents closing-on-init
@@ -1371,6 +1381,10 @@ void EditorPanel::refreshProcessingState (bool inProcessingP)
         history->enableSnapshots(true);
     }
 
+    if (!inProcessingP) {
+        rtengine::openTrace("controls_ready");
+        if (parent) parent->finishLoadingPreview(fname);
+    }
     isProcessing = inProcessingP;
 
     setprogressStrUI(val, str, progressLabel);

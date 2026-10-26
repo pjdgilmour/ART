@@ -1,0 +1,138 @@
+{
+  "system_installation_performed": false,
+  "apt_simulation": "NOTE: This is only a simulation!\n      apt-get needs root privileges for real execution.\n      Keep also in mind that locking is deactivated,\n      so don't depend on the relevance to the real current situation!\nReading package lists...\nBuilding dependency tree...\nReading state information...\nThe following additional packages will be installed:\n  libcanberra-gtk3-0 libcanberra-gtk3-module liblensfun-data-v1 liblensfun1\nThe following NEW packages will be installed:\n  art-optimized libcanberra-gtk3-0 libcanberra-gtk3-module liblensfun-data-v1\n  liblensfun1\n0 upgraded, 5 newly installed, 0 to remove and 0 not upgraded.\nInst libcanberra-gtk3-0 (0.30-18 Debian:13.7/stable [amd64])\nInst liblensfun-data-v1 (0.3.4-1 Debian:13.7/stable [all])\nInst liblensfun1 (0.3.4-1+b3 Debian:13.7/stable [amd64])\nInst art-optimized (2026.10.26+git4a7ed4fb7-1 local-deb [amd64])\nInst libcanberra-gtk3-module (0.30-18 Debian:13.7/stable [amd64])\nConf libcanberra-gtk3-0 (0.30-18 Debian:13.7/stable [amd64])\nConf liblensfun-data-v1 (0.3.4-1 Debian:13.7/stable [all])\nConf liblensfun1 (0.3.4-1+b3 Debian:13.7/stable [amd64])\nConf art-optimized (2026.10.26+git4a7ed4fb7-1 local-deb [amd64])\nConf libcanberra-gtk3-module (0.30-18 Debian:13.7/stable [amd64])\n",
+  "gui": [
+    {
+      "name": "after",
+      "binary": "/tmp/art-deb-validation/root/usr/bin/art-optimized",
+      "snapshots": [
+        {
+          "label": "browser_initial",
+          "us": 22855450505,
+          "monitor_samples": 0,
+          "monitor_updates": 0
+        },
+        {
+          "label": "editor_visible",
+          "us": 22860571853,
+          "monitor_samples": 3,
+          "monitor_updates": 2
+        },
+        {
+          "label": "browser_hidden_begin",
+          "us": 22862632754,
+          "monitor_samples": 3,
+          "monitor_updates": 2
+        },
+        {
+          "label": "browser_hidden_end",
+          "us": 22865633721,
+          "monitor_samples": 3,
+          "monitor_updates": 2
+        },
+        {
+          "label": "editor_resumed",
+          "us": 22867694914,
+          "monitor_samples": 6,
+          "monitor_updates": 4
+        },
+        {
+          "label": "after_directory_stress",
+          "us": 22880858561,
+          "monitor_samples": 6,
+          "monitor_updates": 4
+        }
+      ],
+      "returncode": 0
+    }
+  ],
+  "secondary_folder_invocations": 12,
+  "payload_files_verified": 673,
+  "exports": {
+    "cli": {
+      "output_exists": true,
+      "raw_hashes": [
+        "ART_RAW_HASH 6740 4500 702c1e01fe0ba38f",
+        "ART_RAW_HASH 6740 4500 f05e58adb12b676d"
+      ],
+      "cuda_events": [
+        {
+          "name": "cuda_context_init",
+          "width": 0,
+          "height": 0,
+          "pipeline": -1,
+          "us": 193519
+        },
+        {
+          "name": "cuda_prepare_buffers",
+          "width": 6732,
+          "height": 4492,
+          "pipeline": -1,
+          "us": 417
+        },
+        {
+          "name": "cuda_pack",
+          "width": 6732,
+          "height": 4492,
+          "pipeline": -1,
+          "us": 19489
+        },
+        {
+          "name": "cuda_transfer_and_compute",
+          "width": 6732,
+          "height": 4492,
+          "pipeline": -1,
+          "us": 103765
+        },
+        {
+          "name": "cuda_commit",
+          "width": 6732,
+          "height": 4492,
+          "pipeline": -1,
+          "us": 6817
+        },
+        {
+          "name": "cuda_deconvolution_attempt",
+          "width": 6732,
+          "height": 4492,
+          "pipeline": -1,
+          "us": 130562
+        }
+      ],
+      "cuda_messages": []
+    },
+    "fallback": {
+      "output_exists": true,
+      "raw_hashes": [
+        "ART_RAW_HASH 6740 4500 702c1e01fe0ba38f",
+        "ART_RAW_HASH 6740 4500 f05e58adb12b676d"
+      ],
+      "cuda_events": [
+        {
+          "name": "cuda_context_init",
+          "width": 0,
+          "height": 0,
+          "pipeline": -1,
+          "us": 42001
+        }
+      ],
+      "cuda_messages": [
+        "ART CUDA: initialization failed, using CPU: no CUDA-capable device is detected"
+      ]
+    }
+  },
+  "tiff_comparisons": {
+    "previous_build": "6732x4492 channels=3 different=1147 max_lsb=3 mean_lsb=1.27755123565e-05",
+    "cpu_fallback": "6732x4492 channels=3 different=1184 max_lsb=5 mean_lsb=1.32935874909e-05"
+  },
+  "note": "TIFF differences reflect existing processing variability; decoded RAW hashes match. Timings are not a performance benchmark.",
+  "tested_binary_sha256": {
+    "ART": "ef8a4ca1342e00a01b89e9ff9830f98b54ae4595e43d0e4c6fcf5651feebf2f2",
+    "ART-cli": "180dbfdb0cb9cb90135209aeda992f0e381102ecd0989fc894ec68fb85046d90"
+  },
+  "package_filename": "art-optimized_2026.10.26+git4a7ed4fb7-1_amd64.deb",
+  "package_sha256": "54f267c0ac9c0a872ba76388d58385f57b9bce24986c609332ed8c329238ad77",
+  "package_bytes": 22363804,
+  "final_archive_checksums_verified": 673,
+  "final_binaries_identical_to_tested": true
+}

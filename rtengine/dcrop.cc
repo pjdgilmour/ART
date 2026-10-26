@@ -22,6 +22,8 @@
 #include "mytime.h"
 #include "refreshmap.h"
 #include "rt_math.h"
+#include "pipelinetime.h"
+#include "threadpool.h"
 
 namespace {
 
@@ -134,6 +136,9 @@ bool Crop::hasListener()
 
 void Crop::update(int todo)
 {
+    ThreadPool::Interactive interactive;
+    applyCpuPolicy();
+    PipelineTimer profile_timer("crop_update");
     MyMutex::MyLock cropLock(cropMutex);
 
     ProcParams& params = parent->params;

@@ -17,6 +17,7 @@
  *  along with RawTherapee.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include "filepanel.h"
+#include "../rtengine/opentrace.h"
 
 #include "rtwindow.h"
 #include "inspector.h"
@@ -25,7 +26,7 @@
 
 
 FilePanel::FilePanel () :
-    parent(nullptr), error(0),
+    parent(nullptr),
     pane_pos_(-1)
 {
 
@@ -252,6 +253,7 @@ void FilePanel::on_NB_switch_page(Gtk::Widget* page, guint page_num)
 
 FileSelectionListener::Result FilePanel::fileSelected (Thumbnail* thm)
 {
+    rtengine::openTrace("open_requested");
     if (!parent) {
         return FileSelectionListener::Result::FAIL;
     }
@@ -287,9 +289,16 @@ FileSelectionListener::Result FilePanel::fileSelected (Thumbnail* thm)
     }
     pendingLoadMutex.unlock();
 
+    parent->beginLoadingPreview(thm->getFileName());
     ProgressConnector<rtengine::InitialImage*> *ld = new ProgressConnector<rtengine::InitialImage*>();
-    ld->startFunc (sigc::bind(sigc::ptr_fun(&rtengine::InitialImage::load), thm->getFileName (), thm->getType() == FT_Raw, &error, parent->getProgressListener()),
-                   sigc::bind(sigc::mem_fun(*this, &FilePanel::imageLoaded), thm, ld) );
+    const auto path = thm->getFileName();
+    const bool raw = thm->getType() == FT_Raw;
+    auto listener = parent->getProgressListener();
+    ld->startFunc ([path, raw, listener]() {
+                       int loadError = 0;
+                       return rtengine::InitialImage::load(path, raw, &loadError, listener);
+                   },
+                   sigc::bind(sigc::mem_fun(*this, &FilePanel::imageLoaded), thm, ld), rtengine::ThreadPool::Priority::HIGHEST );
     return FileSelectionListener::Result::OK;
 }
 
@@ -304,6 +313,7 @@ bool FilePanel::addBatchQueueJobs(const std::vector<BatchQueueEntry*>& entries)
 
 bool FilePanel::imageLoaded( Thumbnail* thm, ProgressConnector<rtengine::InitialImage*> *pc )
 {
+    rtengine::openTrace("raw_ready");
 
     pendingLoadMutex.lock();
 
@@ -356,6 +366,7 @@ bool FilePanel::imageLoaded( Thumbnail* thm, ProgressConnector<rtengine::Initial
                 parent->set_title_decorated(pl->thm->getFileName());
             }
         } else {
+            parent->finishLoadingPreview(pl->thm->getFileName());
             if (parent->epanel) {
                 parent->epanel->refreshProcessingState(false);
             }

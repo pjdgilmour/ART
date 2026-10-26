@@ -19,19 +19,21 @@
 #include "rtengine.h"
 #include "stdimagesource.h"
 #include "rawimagesource.h"
+#include "pipelinetime.h"
+#include <memory>
 
 namespace rtengine
 {
 
 InitialImage* InitialImage::load (const Glib::ustring& fname, bool isRaw, int* errorCode, ProgressListener* pl)
 {
-
-    ImageSource* isrc;
+    PipelineTimer timer("load_initial_image");
+    std::unique_ptr<ImageSource> isrc;
 
     if (!isRaw) {
-        isrc = new StdImageSource ();
+        isrc.reset(new StdImageSource());
     } else {
-        isrc = new RawImageSource ();
+        isrc.reset(new RawImageSource());
     }
 
     isrc->setProgressListener (pl);
@@ -39,11 +41,10 @@ InitialImage* InitialImage::load (const Glib::ustring& fname, bool isRaw, int* e
     *errorCode = isrc->load (fname);
 
     if (*errorCode) {
-        delete isrc;
         return nullptr;
     }
 
-    return isrc;
+    return isrc.release();
 }
 }
 
